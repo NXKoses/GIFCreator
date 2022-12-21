@@ -214,6 +214,7 @@ namespace GIFCreator
 
                             //Cv から　bitmapに変換   *こいつをDisposeするとダメ
                             Bitmap resizebitmapframe = new(BitmapConverter.ToBitmap(resizematframe));
+                            
 
                             //Formに変換中のフレームの画像を表示する
                             previewbitmap = resizebitmapframe;
