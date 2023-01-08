@@ -1,22 +1,17 @@
 using OpenCvSharp;
 using OpenCvSharp.Extensions;
-using System.Diagnostics;
 using System.Drawing.Imaging;
-using System.Runtime.Intrinsics.X86;
 using static GIFCreator.SelectMenu;
 
 namespace GIFCreator
 {
     public partial class Form1 : Form
     {
-        public static List<Image>? images;
+        public List<Image>? images;
         public string? inputpath;
         public string? outputpath;
         private Bitmap previewbitmap;
         private int convertframecount;
-        private VideoCapture vcap;
-        private int maxframe;
-        private OpenCvSharp.Size cv2_size;
         private bool ispreviewbuffer = false;
         private bool HalfFps = true;
 
@@ -172,15 +167,15 @@ namespace GIFCreator
         {
             images?.Clear();
 
-            vcap = new VideoCapture(videopath);
+            using VideoCapture vcap = new(videopath);
 
             //アスペクト比を維持してHeightを設定
             int resizeHeight = (int)(vcap.FrameHeight * (width / (double)vcap.FrameWidth));
             resolutionHeihgt_textbox.Text = resizeHeight.ToString();
-            cv2_size = new OpenCvSharp.Size(width, resizeHeight);
+            OpenCvSharp.Size cv2_size = new OpenCvSharp.Size(width, resizeHeight);
 
             //フレームカウントの準備、imagesの準備
-            maxframe = vcap.FrameCount;
+            int maxframe = vcap.FrameCount;
             toolStripProgressBar1.Maximum = maxframe;
 
             if (halfframe) maxframe = vcap.FrameCount / 2;
@@ -195,8 +190,8 @@ namespace GIFCreator
                 {
                     while (vcap.IsOpened())
                     {
-                        Mat mat = new();
-                        Mat resizematframe = new();
+                        using Mat mat = new();
+                        using Mat resizematframe = new();
                         if (vcap.Read(mat) && mat.IsContinuous())
                         {
                             if (start_frame > convertframecount && 0 != start_frame)
@@ -231,8 +226,8 @@ namespace GIFCreator
                             //追加
                             images.Add(resizebitmapframe);
 
-                            resizematframe.Dispose();
-                            mat.Dispose();
+                            resizematframe.Release();
+                            mat.Release();
 
                             this.Invoke(updateaction);
                         }
@@ -242,7 +237,8 @@ namespace GIFCreator
                         }
                         convertframecount++;
                     }
-                    vcap.Dispose();
+                    vcap.Release();
+                    GC.Collect();
                 });
 
                 return 0;
@@ -321,12 +317,11 @@ namespace GIFCreator
         }
         private void trackBar1_Scroll(object sender, EventArgs e)
         {
-            if (ispreviewbuffer)
-            {
-                using var g = pictureBox1.CreateGraphics();
-                g.DrawImage(images[trackBar1.Value], 0, 0, pictureBox1.Width, pictureBox1.Height);
-                nowframe_label.Text = trackBar1.Value.ToString();
-            }
+            if (!ispreviewbuffer) return;
+
+            using var g = pictureBox1.CreateGraphics();
+            g.DrawImage(images[trackBar1.Value], 0, 0, pictureBox1.Width, pictureBox1.Height);
+            nowframe_label.Text = trackBar1.Value.ToString();
         }
         private async void convert_button_Click(object sender, EventArgs e)//変換実行ボタン
         {
@@ -399,7 +394,7 @@ namespace GIFCreator
             SetStatusStrip1("完了");
             images = null;
             ispreviewbuffer = false;
-        }  
+        }
         private async void preview_button_Click(object sender, EventArgs e)//プレビューボタン
         {
             if (inputpath_textbox.Text.Length == 0)
