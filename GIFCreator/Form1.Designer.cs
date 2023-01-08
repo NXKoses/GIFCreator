@@ -30,7 +30,7 @@
         {
             this.convert_button = new System.Windows.Forms.Button();
             this.setting_groupbox = new System.Windows.Forms.GroupBox();
-            this.HalfFps_checkBox = new System.Windows.Forms.CheckBox();
+            this.HalfFrame_checkBox = new System.Windows.Forms.CheckBox();
             this.nowframe_label = new System.Windows.Forms.Label();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.preview_button = new System.Windows.Forms.Button();
@@ -79,7 +79,7 @@
             // 
             // setting_groupbox
             // 
-            this.setting_groupbox.Controls.Add(this.HalfFps_checkBox);
+            this.setting_groupbox.Controls.Add(this.HalfFrame_checkBox);
             this.setting_groupbox.Controls.Add(this.nowframe_label);
             this.setting_groupbox.Controls.Add(this.groupBox3);
             this.setting_groupbox.Controls.Add(this.groupBox2);
@@ -92,18 +92,18 @@
             this.setting_groupbox.TabStop = false;
             this.setting_groupbox.Text = "設定";
             // 
-            // HalfFps_checkBox
+            // HalfFrame_checkBox
             // 
-            this.HalfFps_checkBox.AutoSize = true;
-            this.HalfFps_checkBox.Checked = true;
-            this.HalfFps_checkBox.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.HalfFps_checkBox.Location = new System.Drawing.Point(6, 153);
-            this.HalfFps_checkBox.Name = "HalfFps_checkBox";
-            this.HalfFps_checkBox.Size = new System.Drawing.Size(154, 19);
-            this.HalfFps_checkBox.TabIndex = 5;
-            this.HalfFps_checkBox.Text = "フレームを半分に間引きする";
-            this.HalfFps_checkBox.UseVisualStyleBackColor = true;
-            this.HalfFps_checkBox.CheckedChanged += new System.EventHandler(this.HalfFps_checkBox_CheckedChanged);
+            this.HalfFrame_checkBox.AutoSize = true;
+            this.HalfFrame_checkBox.Checked = true;
+            this.HalfFrame_checkBox.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.HalfFrame_checkBox.Location = new System.Drawing.Point(6, 153);
+            this.HalfFrame_checkBox.Name = "HalfFrame_checkBox";
+            this.HalfFrame_checkBox.Size = new System.Drawing.Size(154, 19);
+            this.HalfFrame_checkBox.TabIndex = 5;
+            this.HalfFrame_checkBox.Text = "フレームを半分に間引きする";
+            this.HalfFrame_checkBox.UseVisualStyleBackColor = true;
+            this.HalfFrame_checkBox.CheckedChanged += new System.EventHandler(this.HalfFps_checkBox_CheckedChanged);
             // 
             // nowframe_label
             // 
@@ -400,7 +400,7 @@
         private TextBox startframe_textBox;
         private Button preview_button;
         private Label nowframe_label;
-        private CheckBox HalfFps_checkBox;
+        private CheckBox HalfFrame_checkBox;
         public TrackBar trackBar1;
     }
 }
