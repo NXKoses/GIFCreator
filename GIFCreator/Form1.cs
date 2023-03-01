@@ -7,10 +7,9 @@ namespace GIFCreator
 {
     public partial class Form1 : Form
     {
-        public List<Image>? images;
+        public static List<Image>? images;
         public string? inputpath;
         public string? outputpath;
-        private Bitmap previewbitmap;
         private int convertframecount;
         private bool ispreviewbuffer = false;
         private bool HalfFps = true;
@@ -20,6 +19,7 @@ namespace GIFCreator
             InitializeComponent();
             ConvertingMode(false);
             previewEnable(false);
+            previewPictureBox.SizeMode = PictureBoxSizeMode.StretchImage;
         }
         /// <summary>
         /// フレームの集まりをGIFにするよ
@@ -163,99 +163,103 @@ namespace GIFCreator
         /// <param name="start_frame">0は無指定</param>
         /// <param name="end_frame">0は無指定</param>
         /// <returns>1が失敗 0が成功</returns>
-        public async Task<int> ConvertMovieFrame(string videopath, int width, bool halfframe, int start_frame = 0, int end_frame = 0)
+        public async Task<int> ConvertMovieFrames(string videoPath, int resizeWidth, bool halfFrame, int startFrame = 0, int endFrame = 0)
         {
-            images?.Clear();
-
-            using VideoCapture vcap = new(videopath);
-
-            //アスペクト比を維持してHeightを設定
-            int resizeHeight = (int)(vcap.FrameHeight * (width / (double)vcap.FrameWidth));
-            resolutionHeihgt_textbox.Text = resizeHeight.ToString();
-            OpenCvSharp.Size cv2_size = new OpenCvSharp.Size(width, resizeHeight);
-
-            //フレームカウントの準備、imagesの準備
-            int maxframe = vcap.FrameCount;
-            toolStripProgressBar1.Maximum = maxframe;
-
-            if (halfframe) maxframe = vcap.FrameCount / 2;
-            images = new List<Image>(maxframe); // フレーム分作成
-            convertframecount = 0;
-
-            Action? previewaction = new(BitmapPreviewAction);
-            Action? updateaction = new(UpdateProgressBarAction);
             try
             {
+                using var videoCapture = new VideoCapture(videoPath);
+                if (!videoCapture.IsOpened())
+                {
+                    throw new Exception("ビデオの読み込みに失敗しました。");
+                }
+
+                // 画像リスト、進捗バー、アクションを初期化
+                Action? updateprogressaction = new(UpdateProgressBarAction);
+                images?.Clear();
+                images = new List<Image>
+                {
+                    Capacity = halfFrame ? videoCapture.FrameCount : videoCapture.FrameCount / 2
+                };
+                toolStripProgressBar1.Maximum = videoCapture.FrameCount;
+
+                // アスペクト比を維持してリサイズするためのサイズを計算
+                int resizeHeight = (int)(videoCapture.FrameHeight * (resizeWidth / (double)videoCapture.FrameWidth));
+                resolutionHeihgt_textbox.Text = resizeHeight.ToString();
+                var resizeSize = new OpenCvSharp.Size(resizeWidth, resizeHeight);
+
+                // フレームを変換してリストに追加する
+                convertframecount = 0;
                 await Task.Run(() =>
                 {
-                    while (vcap.IsOpened())
+                    while (videoCapture.IsOpened())
                     {
-                        using Mat mat = new();
-                        using Mat resizematframe = new();
-                        if (vcap.Read(mat) && mat.IsContinuous())
+                        using var frame = new Mat();
+                        using var resizedFrame = new Mat();
+                        if (videoCapture.Read(frame) & frame.IsContinuous())
                         {
-                            if (start_frame > convertframecount && 0 != start_frame)
+                            if (startFrame > convertframecount & startFrame > 0)
                             {
                                 convertframecount++;
-                                this.Invoke(updateaction);
+                                this.Invoke(updateprogressaction);
                                 continue;
                             }
 
-                            if (end_frame == convertframecount && 0 != end_frame)
+                            if (endFrame == convertframecount & endFrame > 0)
                             {
                                 break;
                             }
 
-                            if (convertframecount % 2 == 1 && halfframe)
+                            if (convertframecount % 2 == 1 & halfFrame)
                             {
                                 convertframecount++;
-                                this.Invoke(updateaction);
+                                this.Invoke(updateprogressaction);
                                 continue;
                             }
 
-                            //画像変換
-                            Cv2.Resize(mat, resizematframe, cv2_size);
+                            // フレームをリサイズ
+                            Cv2.Resize(frame, resizedFrame, resizeSize);
 
-                            //Cv から　bitmapに変換   *こいつをDisposeするとダメ
-                            Bitmap resizebitmapframe = new(BitmapConverter.ToBitmap(resizematframe));
+                            // ビットマップに変換
+                            using var bitmapFrame = BitmapConverter.ToBitmap(resizedFrame);
 
-                            //Formに変換中のフレームの画像を表示する
-                            previewbitmap = resizebitmapframe;
-                            this.Invoke(previewaction);
+                            // プレビュー画面に表示
+                            this.Invoke(new Action(() =>
+                            {
+                                previewPictureBox.Image?.Dispose();
+                                previewPictureBox.Image = (Image)bitmapFrame.Clone();
+                            }));
 
-                            //追加
-                            images.Add(resizebitmapframe);
+                            // 画像をリストに追加
+                            images.Add((Image)bitmapFrame.Clone());
 
-                            resizematframe.Release();
-                            mat.Release();
+                            // メモリを解放
+                            resizedFrame.Release();
+                            frame.Release();
+                            bitmapFrame.Dispose();
 
-                            this.Invoke(updateaction);
+                            this.Invoke(updateprogressaction);
+                            convertframecount++;
                         }
                         else
                         {
                             break;
                         }
-                        convertframecount++;
                     }
-                    vcap.Release();
-                    GC.Collect();
                 });
-
+                videoCapture.Release();
+                GC.Collect();
                 return 0;
             }
-            catch
+            catch (Exception e)
             {
+                MessageBox.Show(e.Message, "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                GC.Collect();
                 return 1;
             }
         }
         private void UpdateProgressBarAction()
         {
             toolStripProgressBar1.Value = convertframecount;
-        }
-        private void BitmapPreviewAction()
-        {
-            using var g = pictureBox1.CreateGraphics();
-            g.DrawImage(previewbitmap, 0, 0, pictureBox1.Width, pictureBox1.Height);
         }
         public void SetStatusStrip1(string text)
         {
@@ -297,6 +301,9 @@ namespace GIFCreator
                 endframesetting_button.Enabled = false;
                 preview_button.Enabled = false;
                 toolStripProgressBar1.Visible = true;
+                HalfFrame_checkBox.Enabled = false;
+                resolution_groupbox.Enabled = false;
+                groupBox2.Enabled = false;
 
             }
             else
@@ -313,14 +320,17 @@ namespace GIFCreator
                 toolStripProgressBar1.Visible = true;
                 toolStripProgressBar1.Value = 0;
                 toolStripProgressBar1.Visible = false;
+                HalfFrame_checkBox.Enabled = true;
+                resolution_groupbox.Enabled = true;
+                groupBox2.Enabled = true;
             }
         }
         private void trackBar1_Scroll(object sender, EventArgs e)
         {
             if (!ispreviewbuffer) return;
 
-            using var g = pictureBox1.CreateGraphics();
-            g.DrawImage(images[trackBar1.Value], 0, 0, pictureBox1.Width, pictureBox1.Height);
+            using var g = previewPictureBox.CreateGraphics();
+            g.DrawImage(images[trackBar1.Value], 0, 0, previewPictureBox.Width, previewPictureBox.Height);
             nowframe_label.Text = trackBar1.Value.ToString();
         }
         private async void convert_button_Click(object sender, EventArgs e)//変換実行ボタン
@@ -361,20 +371,22 @@ namespace GIFCreator
             if (HalfFps)
             {
                 //HalfFPSの時はフレームを倍にしないとうまく切り取れないので二倍にして実行
-                using Task<int> task = ConvertMovieFrame(inputpath_textbox.Text, int.Parse(resolutionWidth_textbox.Text), HalfFps, int.Parse(startframe_textBox.Text) * 2, int.Parse(endframe_textBox.Text) * 2);
+                using Task<int> task = ConvertMovieFrames(inputpath_textbox.Text, int.Parse(resolutionWidth_textbox.Text), HalfFps, int.Parse(startframe_textBox.Text) * 2, int.Parse(endframe_textBox.Text) * 2);
                 if (await task == 1)
                 {
                     ConvertingMode(false);
+                    previewEnable(false);
                     SetStatusStrip1("動画展開に失敗しました");
                     return;
                 }
             }
             else
             {
-                using Task<int> task = ConvertMovieFrame(inputpath_textbox.Text, int.Parse(resolutionWidth_textbox.Text), HalfFps, int.Parse(startframe_textBox.Text), int.Parse(endframe_textBox.Text));
+                using Task<int> task = ConvertMovieFrames(inputpath_textbox.Text, int.Parse(resolutionWidth_textbox.Text), HalfFps, int.Parse(startframe_textBox.Text), int.Parse(endframe_textBox.Text));
                 if (await task == 1)
                 {
                     ConvertingMode(false);
+                    previewEnable(false);
                     SetStatusStrip1("動画展開に失敗しました");
                     return;
                 }
@@ -386,13 +398,15 @@ namespace GIFCreator
             if (await task2 == 1)
             {
                 ConvertingMode(false);
+                previewEnable(false);
                 SetStatusStrip1("GIFの作成に失敗しました");
                 return;
             }
 
             ConvertingMode(false);
+            previewEnable(false);
             SetStatusStrip1("完了");
-            images = null;
+            _ = images;
             ispreviewbuffer = false;
         }
         private async void preview_button_Click(object sender, EventArgs e)//プレビューボタン
@@ -406,7 +420,7 @@ namespace GIFCreator
             ConvertingMode(true);
             SetStatusStrip1("動画を展開しています");
 
-            using Task<int> task = ConvertMovieFrame(inputpath_textbox.Text, 200, HalfFps, 0, 0);
+            using Task<int> task = ConvertMovieFrames(inputpath_textbox.Text, 200, HalfFps, 0, 0);
             if (await task == 1)
             {
                 ConvertingMode(false);
