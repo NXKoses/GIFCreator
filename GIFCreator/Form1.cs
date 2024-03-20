@@ -195,21 +195,21 @@ namespace GIFCreator
                     {
                         using var frame = new Mat();
                         using var resizedFrame = new Mat();
-                        if (videoCapture.Read(frame) & frame.IsContinuous())
+                        if (videoCapture.Read(frame) && frame.IsContinuous())
                         {
-                            if (startFrame > convertframecount & startFrame > 0)
+                            if (startFrame > convertframecount && startFrame > 0)
                             {
                                 convertframecount++;
                                 this.Invoke(updateprogressaction);
                                 continue;
                             }
 
-                            if (endFrame == convertframecount & endFrame > 0)
+                            if (endFrame == convertframecount && endFrame > 0)
                             {
                                 break;
                             }
 
-                            if (convertframecount % 2 == 1 & halfFrame)
+                            if (convertframecount % 2 == 1 && halfFrame)
                             {
                                 convertframecount++;
                                 this.Invoke(updateprogressaction);
